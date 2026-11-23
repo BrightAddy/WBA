@@ -1,0 +1,87 @@
+@import "tailwindcss";
+@import "@kiosk/shared/tokens.css";
+@import "@fontsource-variable/bricolage-grotesque/wdth.css";
+@import "@fontsource-variable/instrument-sans/wdth.css";
+
+@theme inline {
+  --font-display: "Bricolage Grotesque Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: var(--bg);
+  --color-raised: var(--bg-raised);
+  --color-sunken: var(--bg-sunken);
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-faint: var(--fg-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-ink: var(--ink);
+  --color-gold: var(--gold);
+  --color-lime: var(--lime);
+  --color-chat: var(--chat);
+  --color-danger: var(--danger);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius);
+  --radius-lg: var(--radius-lg);
+
+  --ease-out: var(--ease-out);
+  --ease-spring: var(--ease-spring);
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body { min-height: 100dvh; }
+  ::selection { background: var(--gold); color: var(--ink); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+  input, button { font: inherit; color: inherit; }
+}
+
+/* The one loud element: the live store link. Wide, heavy, tight. */
+.store-link {
+  font-family: var(--font-display);
+  font-variation-settings: "wdth" 100;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.92;
+  /* Fit the longest line (domain or slug) to the column; never break mid-word. */
+  font-size: clamp(1.75rem, calc(100cqi / (var(--chars) * 0.56)), 5.75rem);
+  white-space: nowrap;
+}
+.store-link .domain { font-weight: 400; color: var(--fg-faint); }
+.store-link .slug { color: var(--fg); }
+.store-link .caret {
+  display: inline-block;
+  width: 0.08em;
+  height: 0.82em;
+  margin-left: 0.04em;
+  background: var(--accent);
+  vertical-align: -0.06em;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .store-link .caret { animation: blink 1.1s steps(1) infinite; }
+  .slug-char { display: inline-block; animation: drop var(--dur) var(--ease-spring) both; }
+  .shake { animation: shake 360ms var(--ease-out); }
+}
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes drop { from { transform: translateY(-0.18em); opacity: 0; } }
+@keyframes shake {
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+/* Step changes cross-fade via the View Transitions API where supported. */
+::view-transition-old(step) { animation: var(--dur) var(--ease-out) both vt-out; }
+::view-transition-new(step) { animation: var(--dur-slow) var(--ease-out) both vt-in; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-8px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(12px); } }

@@ -1,0 +1,72 @@
+/*
+  Design tokens. Two layers:
+  1. Brand palette: fixed hex, never used directly by components.
+  2. Semantic tokens: what components read. Stores re-theme by overriding
+     the --store-* inputs on a wrapper; every semantic token follows.
+*/
+:root {
+  --ink: #0e0e0c;
+  --ink-2: #1c1c19;
+  --ink-3: #2a2a26;
+  --chalk: #efefea;
+  --chalk-2: #e3e3dc;
+  --chalk-3: #d2d2c8;
+  --stone: #5f5e5a;
+  --stone-2: #8a877f;
+  --signal: #ff4d1f;
+  --signal-deep: #d93a10;
+  --gold: #ffc629;
+  --lime: #c8f169;
+  --chat: #25d366;
+  --danger: #c4261d;
+
+  /* Per-store inputs (overridden in [data-store-theme] or inline) */
+  --store-accent: var(--signal);
+  --store-accent-ink: var(--ink);
+  --store-radius: 14px;
+
+  /* Semantic */
+  --bg: var(--chalk);
+  --bg-raised: #fafaf7;
+  --bg-sunken: var(--chalk-2);
+  --fg: var(--ink);
+  --fg-muted: var(--stone);
+  --fg-faint: var(--stone-2);
+  --line: color-mix(in oklab, var(--ink) 14%, transparent);
+  --line-strong: color-mix(in oklab, var(--ink) 32%, transparent);
+  --accent: var(--store-accent);
+  --accent-fg: var(--store-accent-ink);
+  --focus: color-mix(in oklab, var(--store-accent) 55%, transparent);
+
+  --radius-sm: calc(var(--store-radius) * 0.5);
+  --radius: var(--store-radius);
+  --radius-lg: calc(var(--store-radius) * 1.6);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 140ms;
+  --dur: 240ms;
+  --dur-slow: 420ms;
+
+  color-scheme: light;
+}
+
+[data-mode="dark"] {
+  --bg: var(--ink);
+  --bg-raised: var(--ink-2);
+  --bg-sunken: #070706;
+  --fg: var(--chalk);
+  --fg-muted: #a9a69d;
+  --fg-faint: #75726b;
+  --line: color-mix(in oklab, var(--chalk) 12%, transparent);
+  --line-strong: color-mix(in oklab, var(--chalk) 28%, transparent);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+    --dur-slow: 0ms;
+  }
+}
