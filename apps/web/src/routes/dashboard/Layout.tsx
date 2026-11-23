@@ -46,6 +46,11 @@ export function DashboardLayout({ me }: { me: SellerMe }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-5 text-sm">
+            {me.account.role === "admin" && (
+              <NavLink to="/admin" className="font-medium text-accent hover:underline">
+                Review stores
+              </NavLink>
+            )}
             <span className="hidden text-muted md:inline">{formatGhanaPhone(me.account.phone)}</span>
             <Button variant="quiet" onClick={signOut}>
               Sign out

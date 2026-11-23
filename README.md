@@ -63,4 +63,5 @@ API tests run against real Postgres, built from the committed migrations.
 - Customers have no accounts and there is no public order lookup; the confirmation page reads what the server returned at checkout.
 - Seller notification on a new order is sent at placement for now. Once payment exists (Day 5) it moves to payment confirmation, so unpaid or fake orders don't ping sellers.
 - Link previews: set `WEB_DIST` and the API serves the built app with Open Graph tags for store and product URLs.
+- Store review: new stores are `pending`. Admins (numbers in `ADMIN_PHONES`) approve, reject or suspend them at `/admin`, with a reason recorded in `audit_log`. Admins can preview a pending store; the public cannot see it.
 

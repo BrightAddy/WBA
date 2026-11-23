@@ -17,13 +17,13 @@ export async function storeRoutes(app: FastifyInstance) {
   app.get("/stores/:slug", async (req, reply) => {
     const { slug } = parse(slugParam, req.params);
     reply.header("Cache-Control", "no-cache");
-    return { store: await app.store.getStore(slug, req.account?.id ?? null) };
+    return { store: await app.store.getStore(slug, req.account) };
   });
 
   app.get("/stores/:slug/products/:id", async (req, reply) => {
     const { slug, id } = parse(productParams, req.params);
     reply.header("Cache-Control", "no-cache");
-    return { product: await app.store.getProduct(slug, id, req.account?.id ?? null) };
+    return { product: await app.store.getProduct(slug, id, req.account) };
   });
 
   app.post(
@@ -32,7 +32,7 @@ export async function storeRoutes(app: FastifyInstance) {
     async (req) => {
       const { slug } = parse(slugParam, req.params);
       const input = parse(quoteInputSchema, req.body);
-      return app.store.quote(slug, input, req.account?.id ?? null);
+      return app.store.quote(slug, input, req.account);
     },
   );
 

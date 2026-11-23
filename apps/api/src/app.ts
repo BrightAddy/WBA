@@ -29,6 +29,8 @@ import { sellerDashboardRoutes } from "./modules/seller-dashboard/routes.ts";
 import { createStoreService, type StoreService } from "./modules/store/service.ts";
 import { storeRoutes } from "./modules/store/routes.ts";
 import { createOrdersService, type OrdersService } from "./modules/orders/service.ts";
+import { createAdminService, type AdminService } from "./modules/admin/service.ts";
+import { adminRoutes } from "./modules/admin/routes.ts";
 import { webShell } from "./modules/web-shell/routes.ts";
 
 declare module "fastify" {
@@ -41,6 +43,7 @@ declare module "fastify" {
     delivery: DeliveryService;
     store: StoreService;
     orders: OrdersService;
+    admin: AdminService;
   }
 }
 
@@ -85,6 +88,7 @@ export async function buildApp({ env, db, otpSender, orderNotifier, storage, log
   app.decorate("delivery", createDeliveryService({ db }));
   app.decorate("store", createStoreService({ db, storage: store, notifier, log: app.log }));
   app.decorate("orders", createOrdersService({ db }));
+  app.decorate("admin", createAdminService({ db }));
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: env.WEB_ORIGIN, credentials: true });
@@ -141,6 +145,7 @@ export async function buildApp({ env, db, otpSender, orderNotifier, storage, log
       await api.register(sellerRoutes);
       await api.register(storeRoutes);
       await api.register(sellerDashboardRoutes, { prefix: "/seller" });
+      await api.register(adminRoutes, { prefix: "/admin" });
     },
     { prefix: "/api" },
   );

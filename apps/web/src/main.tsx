@@ -12,6 +12,8 @@ import { Products } from "./routes/dashboard/Products.tsx";
 import { ProductEditor } from "./routes/dashboard/ProductEditor.tsx";
 import { Delivery } from "./routes/dashboard/Delivery.tsx";
 import { Orders } from "./routes/dashboard/Orders.tsx";
+import { AdminLayout } from "./routes/admin/Layout.tsx";
+import { Review } from "./routes/admin/Review.tsx";
 import { StoreShell } from "./routes/store/StoreShell.tsx";
 import { StoreHome } from "./routes/store/StoreHome.tsx";
 import { ProductPage } from "./routes/store/ProductPage.tsx";
@@ -35,10 +37,19 @@ function Gate() {
   }
 
   const data = me.data;
-  const area = !data ? "/login" : !data.seller ? "/onboarding" : "/dashboard";
+  // Admins can always open /admin; one without a store of their own lands there.
+  const isAdmin = data?.account.role === "admin";
+  const area = !data
+    ? "/login"
+    : isAdmin && (pathname.startsWith("/admin") || !data.seller)
+      ? "/admin"
+      : !data.seller
+        ? "/onboarding"
+        : "/dashboard";
   const inArea = pathname === area || pathname.startsWith(`${area}/`);
   if (!inArea) return <Navigate to={area} replace />;
 
+  if (area === "/admin") return <AdminLayout me={data!} />;
   if (area === "/dashboard") return <DashboardLayout me={data as SellerMe} />;
   return <Outlet />;
 }
@@ -61,6 +72,7 @@ const router = createBrowserRouter([
     children: [
       { path: "/login", element: <Login /> },
       { path: "/onboarding", element: <Onboarding /> },
+      { path: "/admin", children: [{ index: true, element: <Review /> }, { path: "*", element: <Navigate to="/admin" replace /> }] },
       {
         path: "/dashboard",
         children: [

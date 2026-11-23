@@ -36,6 +36,7 @@ import type { OrderNotifier } from "../../lib/whatsapp.ts";
 import { imageDto } from "../catalogue/dto.ts";
 
 type Seller = typeof sellers.$inferSelect;
+type Viewer = { id: string; role: string } | null;
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 type Conn = Db | Tx;
 type Checkout = z.output<typeof checkoutSchema>;
@@ -77,11 +78,12 @@ export function createStoreService({ db, storage, notifier, log }: {
    * Approved stores are public. A pending store is visible only to its owner
    * (as a preview, with checkout off). Suspended or banned stores don't exist.
    */
-  async function visibleSeller(slug: string, viewerAccountId: string | null): Promise<{ seller: Seller; preview: boolean }> {
+  async function visibleSeller(slug: string, viewer: Viewer): Promise<{ seller: Seller; preview: boolean }> {
     const seller = await findSeller(slug);
     if (!seller) throw notFound();
     if (seller.status === "approved") return { seller, preview: false };
-    if (seller.status === "pending" && viewerAccountId && seller.accountId === viewerAccountId) {
+    // Review: the owner and any admin can look at a store before it goes live.
+    if (seller.status === "pending" && viewer && (viewer.id === seller.accountId || viewer.role === "admin")) {
       return { seller, preview: true };
     }
     throw notFound();
@@ -89,8 +91,8 @@ export function createStoreService({ db, storage, notifier, log }: {
 
   /* ───────── Browsing ───────── */
 
-  async function getStore(slug: string, viewerAccountId: string | null): Promise<PublicStore> {
-    const { seller, preview } = await visibleSeller(slug, viewerAccountId);
+  async function getStore(slug: string, viewer: Viewer): Promise<PublicStore> {
+    const { seller, preview } = await visibleSeller(slug, viewer);
 
     const [zones, rows] = await Promise.all([
       db
@@ -163,8 +165,8 @@ export function createStoreService({ db, storage, notifier, log }: {
     };
   }
 
-  async function getProduct(slug: string, productId: string, viewerAccountId: string | null): Promise<PublicProduct> {
-    const { seller } = await visibleSeller(slug, viewerAccountId);
+  async function getProduct(slug: string, productId: string, viewer: Viewer): Promise<PublicProduct> {
+    const { seller } = await visibleSeller(slug, viewer);
     const [p] = await db
       .select()
       .from(products)
@@ -281,8 +283,8 @@ export function createStoreService({ db, storage, notifier, log }: {
     };
   }
 
-  async function quote(slug: string, input: QuoteInput, viewerAccountId: string | null): Promise<QuoteResponse> {
-    const { seller } = await visibleSeller(slug, viewerAccountId);
+  async function quote(slug: string, input: QuoteInput, viewer: Viewer): Promise<QuoteResponse> {
+    const { seller } = await visibleSeller(slug, viewer);
     return price(seller, input);
   }
 

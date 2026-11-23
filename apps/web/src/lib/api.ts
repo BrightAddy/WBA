@@ -1,4 +1,6 @@
 import type {
+  AdminSellerDto,
+  AdminSellerFilter,
   ApiError,
   DeliveryConfigDto,
   ImageDto,
@@ -107,6 +109,11 @@ export const api = {
 
   sellerOrders: () => request<{ orders: SellerOrderDto[] }>("GET", "/seller/orders").then((r) => r.orders),
   cancelOrder: (id: string) => request<void>("POST", `/seller/orders/${id}/cancel`, {}),
+
+  adminSellers: (status: AdminSellerFilter) =>
+    request<{ sellers: AdminSellerDto[]; counts: Record<AdminSellerFilter, number> }>("GET", `/admin/sellers?status=${status}`),
+  adminApprove: (id: string) => request<void>("POST", `/admin/sellers/${id}/approve`, {}),
+  adminSuspend: (id: string, reason: string) => request<void>("POST", `/admin/sellers/${id}/suspend`, { reason }),
 
   delivery: () => request<DeliveryConfigDto>("GET", "/seller/delivery"),
   saveZones: (zones: ZoneInput[]) => request<DeliveryConfigDto>("PUT", "/seller/delivery/zones", { zones }),
