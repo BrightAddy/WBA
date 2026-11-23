@@ -356,6 +356,18 @@ export const orderEvents = pgTable(
 
 /* ───────────────────────── Conversations ───────────────────────── */
 
+export type OrderDraft = {
+  items: { variantId: string; quantity: number }[];
+  fulfilment: "delivery" | "pickup";
+  zoneId: string | null;
+  customerName: string;
+  addressText: string | null;
+  landmark: string | null;
+  note: string | null;
+  /** ISO time; drafts older than DRAFT_TTL are ignored. */
+  at: string;
+};
+
 export const conversations = pgTable(
   "conversations",
   {
@@ -369,6 +381,8 @@ export const conversations = pgTable(
     mode: conversationMode("mode").notNull().default("bot"),
     needsAttention: boolean("needs_attention").notNull().default(false),
     attentionReason: text("attention_reason"),
+    /** Order the assistant has prepared and is waiting for the customer to confirm. */
+    draft: jsonb("draft").$type<OrderDraft>(),
     lastMessageAt: timestamp("last_message_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: createdAt(),
   },

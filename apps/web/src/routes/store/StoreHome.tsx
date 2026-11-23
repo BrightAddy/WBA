@@ -7,6 +7,12 @@ import { useStore } from "./StoreShell.tsx";
 
 const SEARCH_FROM = 12;
 
+const WhatsAppMark = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <path d="M12.04 2a9.9 9.9 0 0 0-8.43 15.1L2 22l5.04-1.55A9.9 9.9 0 1 0 12.04 2Zm0 1.8a8.1 8.1 0 1 1-4.3 14.96l-.3-.19-2.99.92.96-2.92-.2-.31A8.1 8.1 0 0 1 12.04 3.8Zm-3 3.9c-.2 0-.52.07-.8.37-.27.3-1.03 1-1.03 2.45 0 1.44 1.05 2.84 1.2 3.04.15.2 2.04 3.25 5.03 4.42 2.48.97 2.98.78 3.52.73.54-.05 1.74-.7 1.98-1.4.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35-.3-.15-1.74-.86-2.01-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.6.13-.14.3-.35.45-.52.15-.18.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57Z" />
+  </svg>
+);
+
 export function StoreHome() {
   const { store, slug } = useStore();
   const [category, setCategory] = useState<string>("All");
@@ -39,6 +45,18 @@ export function StoreHome() {
           <span className="text-accent">.</span>
         </h1>
         {store.bio && <p className="mt-5 max-w-[52ch] text-lg text-muted text-pretty">{store.bio}</p>}
+
+        {store.whatsappUrl && !store.preview && (
+          <a
+            href={store.whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 inline-flex h-11 items-center gap-2.5 rounded-full border border-line-strong bg-raised px-5 text-sm font-medium transition-colors hover:border-fg active:scale-[0.98]"
+          >
+            <WhatsAppMark />
+            Ask on WhatsApp
+          </a>
+        )}
 
         {(facts.length > 0 || store.instagramUrl || store.tiktokUrl) && (
           <ul className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">

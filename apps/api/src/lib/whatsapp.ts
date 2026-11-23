@@ -150,3 +150,65 @@ export class MemoryOrderNotifier implements OrderNotifier {
     this.sent.push(n);
   }
 }
+
+
+/* ───────────────────────── Chat replies (inside the 24h window) ───────────────────────── */
+
+/** Free-form text is only allowed within 24h of the customer's last message, which is always true for replies. */
+export interface ChatClient {
+  sendText(toE164: string, body: string): Promise<{ id: string | null }>;
+}
+
+export class WhatsAppChatClient implements ChatClient {
+  constructor(
+    private readonly env: Pick<Env, "WHATSAPP_TOKEN" | "WHATSAPP_PHONE_NUMBER_ID" | "WHATSAPP_GRAPH_VERSION">,
+    private readonly log: FastifyBaseLogger,
+  ) {}
+
+  async sendText(toE164: string, body: string) {
+    const url = `https://graph.facebook.com/${this.env.WHATSAPP_GRAPH_VERSION}/${this.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: toE164.replace(/^\+/, ""),
+        type: "text",
+        text: { body, preview_url: true },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      this.log.error({ status: res.status, detail, to: maskPhone(toE164) }, "whatsapp chat send failed");
+      throw new Error(`WhatsApp send failed (${res.status})`);
+    }
+    const json = (await res.json().catch(() => null)) as { messages?: { id?: string }[] } | null;
+    return { id: json?.messages?.[0]?.id ?? null };
+  }
+}
+
+/** Dev without credentials: prints what the bot would say. */
+export class ConsoleChatClient implements ChatClient {
+  constructor(private readonly log: FastifyBaseLogger) {}
+  async sendText(to: string, body: string) {
+    this.log.warn(`\n  [bot → ${to}]\n${body.replace(/^/gm, "    ")}\n`);
+    return { id: null };
+  }
+}
+
+/** Tests: records every reply. */
+export class MemoryChatClient implements ChatClient {
+  readonly sent: { to: string; body: string }[] = [];
+  fail = false;
+  private n = 0;
+  async sendText(to: string, body: string) {
+    if (this.fail) throw new Error("send failed");
+    this.sent.push({ to, body });
+    return { id: `wamid.out.${++this.n}` };
+  }
+  last(to?: string) {
+    const list = to ? this.sent.filter((m) => m.to === to) : this.sent;
+    return list.at(-1)?.body;
+  }
+}

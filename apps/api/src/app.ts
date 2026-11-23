@@ -10,10 +10,13 @@ import type { Env } from "./env.ts";
 import type { Db } from "./db/client.ts";
 import { AppError } from "./lib/errors.ts";
 import {
+  ConsoleChatClient,
   ConsoleOrderNotifier,
   ConsoleOtpSender,
+  WhatsAppChatClient,
   WhatsAppOrderNotifier,
   WhatsAppOtpSender,
+  type ChatClient,
   type OrderNotifier,
   type OtpSender,
 } from "./lib/whatsapp.ts";
@@ -31,6 +34,9 @@ import { storeRoutes } from "./modules/store/routes.ts";
 import { createOrdersService, type OrdersService } from "./modules/orders/service.ts";
 import { createAdminService, type AdminService } from "./modules/admin/service.ts";
 import { adminRoutes } from "./modules/admin/routes.ts";
+import { createBotService, type BotService } from "./modules/bot/service.ts";
+import { botRoutes } from "./modules/bot/routes.ts";
+import { ClaudeAssistant, RuleAssistant, type Assistant } from "./modules/bot/assistant.ts";
 import { webShell } from "./modules/web-shell/routes.ts";
 
 declare module "fastify" {
@@ -44,6 +50,7 @@ declare module "fastify" {
     store: StoreService;
     orders: OrdersService;
     admin: AdminService;
+    bot: BotService;
   }
 }
 
@@ -56,11 +63,13 @@ export type BuildOptions = {
   db: Db;
   otpSender?: OtpSender;
   orderNotifier?: OrderNotifier;
+  chatClient?: ChatClient;
+  assistant?: Assistant;
   storage?: Storage;
   logger?: boolean;
 };
 
-export async function buildApp({ env, db, otpSender, orderNotifier, storage, logger = true }: BuildOptions): Promise<FastifyInstance> {
+export async function buildApp({ env, db, otpSender, orderNotifier, chatClient, assistant, storage, logger = true }: BuildOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger: logger
       ? env.NODE_ENV === "development"
@@ -79,6 +88,15 @@ export async function buildApp({ env, db, otpSender, orderNotifier, storage, log
     orderNotifier ??
     (env.WHATSAPP_TOKEN && env.WHATSAPP_PHONE_NUMBER_ID ? new WhatsAppOrderNotifier(env, app.log) : new ConsoleOrderNotifier(app.log));
 
+  const chat =
+    chatClient ??
+    (env.WHATSAPP_TOKEN && env.WHATSAPP_PHONE_NUMBER_ID ? new WhatsAppChatClient(env, app.log) : new ConsoleChatClient(app.log));
+  const brain =
+    assistant ??
+    (env.ANTHROPIC_API_KEY
+      ? Object.assign(new ClaudeAssistant({ apiKey: env.ANTHROPIC_API_KEY, model: env.ANTHROPIC_MODEL }), { canTakeOrders: true })
+      : Object.assign(new RuleAssistant(), { canTakeOrders: false }));
+
   app.decorate("env", env);
   app.decorate("db", db);
   const store = storage ?? new LocalStorage(env.MEDIA_DIR);
@@ -86,9 +104,11 @@ export async function buildApp({ env, db, otpSender, orderNotifier, storage, log
   app.decorate("storage", store);
   app.decorate("catalogue", createCatalogueService({ db, storage: store }));
   app.decorate("delivery", createDeliveryService({ db }));
-  app.decorate("store", createStoreService({ db, storage: store, notifier, log: app.log }));
+  app.decorate("store", createStoreService({ db, storage: store, notifier, log: app.log, botNumber: env.WHATSAPP_BOT_NUMBER ?? null }));
   app.decorate("orders", createOrdersService({ db }));
   app.decorate("admin", createAdminService({ db }));
+  app.decorate("bot", createBotService({ db, env, store: app.store, chat, assistant: brain, log: app.log }));
+  app.addHook("onClose", async () => app.bot.idle());
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: env.WEB_ORIGIN, credentials: true });
@@ -146,6 +166,7 @@ export async function buildApp({ env, db, otpSender, orderNotifier, storage, log
       await api.register(storeRoutes);
       await api.register(sellerDashboardRoutes, { prefix: "/seller" });
       await api.register(adminRoutes, { prefix: "/admin" });
+      await api.register(botRoutes);
     },
     { prefix: "/api" },
   );

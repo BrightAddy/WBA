@@ -7,26 +7,44 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.ts";
 import { createDb, type Db } from "../src/db/client.ts";
 import { loadEnv } from "../src/env.ts";
-import { MemoryOrderNotifier, MemoryOtpSender } from "../src/lib/whatsapp.ts";
+import { MemoryChatClient, MemoryOrderNotifier, MemoryOtpSender } from "../src/lib/whatsapp.ts";
+import type { Assistant } from "../src/modules/bot/assistant.ts";
 import { LocalStorage } from "../src/lib/storage.ts";
 
 export const ORIGIN = "http://localhost:5173";
 const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? "postgres://kiosk:kiosk@localhost:5432/kiosk_test";
 
-export async function setupTestApp() {
+export const WA_SECRET = "test-app-secret";
+export const WA_VERIFY = "test-verify-token";
+
+export async function setupTestApp(opts: { assistant?: Assistant; env?: Record<string, string> } = {}) {
   const env = loadEnv({
     NODE_ENV: "test",
     DATABASE_URL: TEST_DB_URL,
     WEB_ORIGIN: ORIGIN,
     OTP_SECRET: "test-secret-test-secret-test-secret-xx",
     ADMIN_PHONES: "+233200000000",
+    WHATSAPP_APP_SECRET: WA_SECRET,
+    WHATSAPP_VERIFY_TOKEN: WA_VERIFY,
+    WHATSAPP_BOT_NUMBER: "233201234567",
+    ...opts.env,
   });
   const { db, pool } = createDb(TEST_DB_URL);
   const sender = new MemoryOtpSender();
   const storage = new LocalStorage(mkdtempSync(join(tmpdir(), "kiosk-media-")));
   const notifier = new MemoryOrderNotifier();
-  const app = await buildApp({ env, db, otpSender: sender, orderNotifier: notifier, storage, logger: false });
-  return { app, db, pool, sender, storage, notifier };
+  const chat = new MemoryChatClient();
+  const app = await buildApp({
+    env,
+    db,
+    otpSender: sender,
+    orderNotifier: notifier,
+    chatClient: chat,
+    ...(opts.assistant && { assistant: opts.assistant }),
+    storage,
+    logger: false,
+  });
+  return { app, db, pool, sender, storage, notifier, chat };
 }
 
 export async function resetDb(db: Db) {

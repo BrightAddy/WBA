@@ -112,6 +112,8 @@ export type PublicStore = {
   theme: StoreTheme;
   /** True when the owner is viewing a store that isn't live yet. Checkout is off. */
   preview: boolean;
+  /** Opens a chat with the shared bot already pointed at this store. Null until a bot number is set. */
+  whatsappUrl: string | null;
   delivery: { zones: ZoneDto[]; settings: Pick<DeliverySettings, "pickupEnabled" | "pickupAddress" | "freeDeliveryOverPesewas"> };
   categories: Category[];
   products: PublicProductCard[];
@@ -182,3 +184,10 @@ export function readableInk(hex: string): "#0e0e0c" | "#ffffff" {
   const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
   return L > 0.4 ? "#0e0e0c" : "#ffffff";
 }
+
+
+/** What a customer's first message says so the bot knows which store they mean: "@store-link". */
+export const STORE_MENTION = /(?:^|\s)@([a-z0-9][a-z0-9-]{1,38}[a-z0-9])(?![a-z0-9-])/i;
+
+export const whatsappStoreLink = (botNumberDigits: string, slug: string) =>
+  `https://wa.me/${botNumberDigits}?text=${encodeURIComponent(`Hi! I'm shopping at @${slug}`)}`;

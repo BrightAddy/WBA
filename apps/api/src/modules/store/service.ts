@@ -5,6 +5,7 @@ import {
   MAX_LINE_QTY,
   quoteDelivery,
   variantLabel,
+  whatsappStoreLink,
   type Category,
   type PlacedOrder,
   type PublicProduct,
@@ -57,7 +58,9 @@ const notFound = (what = "store") => new AppError(404, "not_found", `That ${what
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const newCode = () => Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join("");
 
-export function createStoreService({ db, storage, notifier, log }: {
+export function createStoreService({ db, storage, notifier, log, botNumber = null }: {
+  /** Shared bot number in international digits; enables the "Chat on WhatsApp" link. */
+  botNumber?: string | null;
   db: Db;
   storage: Storage;
   notifier: OrderNotifier;
@@ -152,6 +155,7 @@ export function createStoreService({ db, storage, notifier, log }: {
       tiktokUrl: seller.tiktokUrl,
       theme: seller.theme,
       preview,
+      whatsappUrl: botNumber ? whatsappStoreLink(botNumber, seller.slug) : null,
       delivery: {
         zones: zones.map((z) => ({ id: z.id, name: z.name, feePesewas: z.feePesewas, etaLabel: z.etaLabel })),
         settings: {
@@ -296,7 +300,7 @@ export function createStoreService({ db, storage, notifier, log }: {
     return placedView(o!, items, storeName);
   }
 
-  async function placeOrder(slug: string, input: Checkout): Promise<PlacedOrder> {
+  async function placeOrder(slug: string, input: Checkout, channel: "storefront" | "whatsapp" = "storefront"): Promise<PlacedOrder> {
     const seller = await findSeller(slug);
     if (!seller || seller.status !== "approved") throw notFound();
 
@@ -357,7 +361,7 @@ export function createStoreService({ db, storage, notifier, log }: {
             code: orderCode,
             sellerId: seller.id,
             customerId: customer!.id,
-            channel: "storefront",
+            channel,
             status: "pending_payment",
             fulfilment: input.fulfilment,
             subtotalPesewas: q.subtotalPesewas,
@@ -391,7 +395,7 @@ export function createStoreService({ db, storage, notifier, log }: {
           fromStatus: null,
           toStatus: "pending_payment",
           actor: "customer",
-          note: "Placed on the storefront",
+          note: channel === "whatsapp" ? "Placed on WhatsApp" : "Placed on the storefront",
         });
         return order!.code;
       });

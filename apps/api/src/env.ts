@@ -38,8 +38,26 @@ const schema = z
     WHATSAPP_ORDER_TEMPLATE: z.string().default("kiosk_new_order"),
     WHATSAPP_OTP_TEMPLATE_LANG: z.string().default("en"),
     WHATSAPP_GRAPH_VERSION: z.string().default("v23.0"),
+    /** Meta app secret; signs every webhook call (X-Hub-Signature-256). */
+    WHATSAPP_APP_SECRET: z.string().optional().default(""),
+    /** Any string you choose; Meta echoes it when you register the webhook URL. */
+    WHATSAPP_VERIFY_TOKEN: z.string().optional().default(""),
+    /** The shared bot number in international digits (233201234567), for wa.me links. */
+    WHATSAPP_BOT_NUMBER: z.string().regex(/^\d{8,15}$/, "digits only, e.g. 233201234567").optional(),
+    /** Blank = the assistant falls back to simple built-in replies. */
+    ANTHROPIC_API_KEY: z.string().optional().default(""),
+    ANTHROPIC_MODEL: z.string().default("claude-haiku-5-5"),
+    /** How many messages one customer may send per 10 minutes before we stop replying. */
+    BOT_CUSTOMER_BURST: z.coerce.number().int().positive().default(20),
   })
   .superRefine((env, ctx) => {
+    if (env.NODE_ENV === "production" && !(env.WHATSAPP_APP_SECRET && env.WHATSAPP_VERIFY_TOKEN)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "WHATSAPP_APP_SECRET and WHATSAPP_VERIFY_TOKEN are required in production (webhook must be signed).",
+        path: ["WHATSAPP_APP_SECRET"],
+      });
+    }
     if (env.NODE_ENV === "production" && !(env.WHATSAPP_TOKEN && env.WHATSAPP_PHONE_NUMBER_ID)) {
       ctx.addIssue({
         code: "custom",

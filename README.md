@@ -65,3 +65,13 @@ API tests run against real Postgres, built from the committed migrations.
 - Link previews: set `WEB_DIST` and the API serves the built app with Open Graph tags for store and product URLs.
 - Store review: new stores are `pending`. Admins (numbers in `ADMIN_PHONES`) approve, reject or suspend them at `/admin`, with a reason recorded in `audit_log`. Admins can preview a pending store; the public cannot see it.
 
+## WhatsApp bot (Day 4)
+
+- One shared number, one webhook: `GET/POST /api/webhooks/whatsapp`. GET answers Meta's verify handshake; POST must carry a valid `X-Hub-Signature-256` over the raw body, otherwise 401. We answer 200 immediately and reply in the background; Meta's retries are harmless because `messages.wa_message_id` is unique.
+- Routing: a customer arrives with `Hi! I'm shopping at @store-link` (the storefront's "Ask on WhatsApp" button sends it). The mention sets `customers.active_seller_id`; later messages stay with that store until they mention another.
+- The assistant can only read the public catalogue, ask the server to price a basket, and hand off to the seller. It cannot place orders: `prepare_order` saves a priced draft, the service appends the summary itself (the model never writes totals), and only the customer's own "yes" calls `placeOrder`, idempotently per WhatsApp message. Drafts expire after 30 minutes.
+- Cost guards: per-customer burst limit, per-seller monthly reply quota (`sellers.bot_message_quota`), tool loop capped at 5 rounds, 25s model timeout.
+- No `ANTHROPIC_API_KEY`: a rule-based assistant lists products and delivery and points orders to the store link.
+- Seller handoff sets `conversations.needs_attention`. The inbox that shows it, and lets a seller reply, is Day 6.
+- Per-customer ordering of messages is an in-process queue. Fine for one API instance; use a real queue before running several.
+
