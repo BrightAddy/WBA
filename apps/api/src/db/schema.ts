@@ -8,6 +8,7 @@
  * - Every status change on an order is appended to order_events.
  */
 import { sql } from "drizzle-orm";
+import type { StoreTheme } from "@kiosk/shared";
 import {
   boolean,
   check,
@@ -109,12 +110,7 @@ export const sessions = pgTable(
 
 /* ───────────────────────── Sellers ───────────────────────── */
 
-export type StoreTheme = {
-  preset: string;
-  accent?: string;
-  radius?: number;
-  layout?: "grid" | "feed";
-};
+export type { StoreTheme };
 
 export const sellers = pgTable(
   "sellers",
@@ -292,6 +288,8 @@ export const orders = pgTable(
     customerName: text("customer_name"),
     customerPhone: text("customer_phone").notNull(),
     note: text("note"),
+    /** Client-generated per checkout attempt; makes order placement idempotent. */
+    clientToken: text("client_token"),
 
     paymentProvider: text("payment_provider"),
     paymentRef: text("payment_ref").unique(),
@@ -307,6 +305,7 @@ export const orders = pgTable(
     index("orders_seller_created_idx").on(t.sellerId, t.createdAt),
     index("orders_status_idx").on(t.status),
     index("orders_customer_idx").on(t.customerId),
+    uniqueIndex("orders_seller_client_token_uq").on(t.sellerId, t.clientToken).where(sql`${t.clientToken} IS NOT NULL`),
     check("orders_total_consistent", sql`${t.totalPesewas} = ${t.subtotalPesewas} + ${t.deliveryFeePesewas}`),
     check("orders_amounts_nonneg", sql`${t.subtotalPesewas} > 0 AND ${t.deliveryFeePesewas} >= 0`),
     check(

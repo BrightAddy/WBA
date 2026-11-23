@@ -8,6 +8,15 @@ const schema = z
     WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
     DATABASE_URL: z.string().url(),
     MEDIA_DIR: z.string().default(".media"),
+    /** Public origin of the site, used for absolute links in link previews. Defaults to WEB_ORIGIN. */
+    PUBLIC_URL: z.string().url().optional(),
+    /** Built web app. When set, the API serves it and injects link-preview tags per store. */
+    WEB_DIST: z.string().optional(),
+    /** Skip manual approval. For local testing only; production keeps stores pending until reviewed. */
+    AUTO_APPROVE_SELLERS: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((v) => v === "true"),
     OTP_SECRET: z.string().min(32, "OTP_SECRET must be at least 32 characters"),
     ADMIN_PHONES: z
       .string()
@@ -26,6 +35,7 @@ const schema = z
     WHATSAPP_TOKEN: z.string().optional().default(""),
     WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(""),
     WHATSAPP_OTP_TEMPLATE: z.string().default("kiosk_login_code"),
+    WHATSAPP_ORDER_TEMPLATE: z.string().default("kiosk_new_order"),
     WHATSAPP_OTP_TEMPLATE_LANG: z.string().default("en"),
     WHATSAPP_GRAPH_VERSION: z.string().default("v23.0"),
   })

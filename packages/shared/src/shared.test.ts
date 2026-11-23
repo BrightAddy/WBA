@@ -116,3 +116,19 @@ describe("delivery", () => {
     expect(r.success).toBe(false);
   });
 });
+
+describe("checkoutSchema", () => {
+  it("reports every problem at once, including a missing address beside a bad name and phone", async () => {
+    const { checkoutSchema } = await import("./store.ts");
+    const r = checkoutSchema.safeParse({
+      items: [{ variantId: "3f2b8c1e-9a4d-4e0b-8f6a-1c2d3e4f5a6b", quantity: 1 }],
+      fulfilment: "delivery",
+      clientToken: "3f2b8c1e-9a4d-4e0b-8f6a-1c2d3e4f5a6c",
+      customerName: "",
+      customerPhone: "12",
+    });
+    expect(r.success).toBe(false);
+    const keys = r.success ? [] : r.error.issues.map((i) => String(i.path[0]));
+    expect(keys).toEqual(expect.arrayContaining(["customerName", "customerPhone", "zoneId", "addressText"]));
+  });
+});

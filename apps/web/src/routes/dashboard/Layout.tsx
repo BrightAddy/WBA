@@ -11,6 +11,7 @@ export const useSellerMe = () => useOutletContext<SellerMe>();
 const NAV = [
   { to: "/dashboard", label: "Home", end: true },
   { to: "/dashboard/products", label: "Products", end: false },
+  { to: "/dashboard/orders", label: "Orders", end: false },
   { to: "/dashboard/delivery", label: "Delivery", end: false },
 ];
 
@@ -58,7 +59,7 @@ export function DashboardLayout({ me }: { me: SellerMe }) {
       {/* Thumb-reach navigation on phones */}
       <nav
         aria-label="Dashboard"
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t border-line bg-bg pb-[env(safe-area-inset-bottom)] sm:hidden"
       >
         {NAV.map((n) => (
           <NavLink

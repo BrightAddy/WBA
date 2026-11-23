@@ -49,6 +49,7 @@ export async function sellerRoutes(app: FastifyInstance) {
           instagramUrl: body.data.instagramUrl ?? null,
           tiktokUrl: body.data.tiktokUrl ?? null,
           notifyPhone: account.phone,
+          ...(app.env.AUTO_APPROVE_SELLERS && { status: "approved" as const, approvedAt: new Date() }),
         })
         .returning();
       req.log.info({ sellerId: seller!.id, slug: seller!.slug }, "seller onboarded, awaiting review");

@@ -1,5 +1,5 @@
 import type { FastifyBaseLogger } from "fastify";
-import { maskPhone } from "@kiosk/shared";
+import { formatCedis, maskPhone } from "@kiosk/shared";
 import type { Env } from "../env.ts";
 
 /** Anything that can deliver a login code. Swappable for tests and dev. */
@@ -62,5 +62,91 @@ export class MemoryOtpSender implements OtpSender {
   readonly sent = new Map<string, string>();
   async sendLoginCode(phoneE164: string, code: string) {
     this.sent.set(phoneE164, code);
+  }
+}
+
+/* ───────────────────────── Seller order notifications ───────────────────────── */
+
+export type OrderNotice = {
+  to: string;
+  storeName: string;
+  code: string;
+  customerName: string;
+  customerPhone: string;
+  totalPesewas: number;
+  itemCount: number;
+  fulfilment: "delivery" | "pickup";
+  zoneName: string | null;
+};
+
+/** Tells a seller about a new order. Failures never fail the order. */
+export interface OrderNotifier {
+  orderPlaced(n: OrderNotice): Promise<void>;
+}
+
+/**
+ * Sends the seller a WhatsApp *utility* template (business-initiated messages
+ * outside the 24-hour window must be templates). Body variables, in order:
+ * order code, customer name, item count, total, area. Not yet exercised against
+ * Meta: it needs an approved template on a verified business account.
+ */
+export class WhatsAppOrderNotifier implements OrderNotifier {
+  constructor(
+    private readonly env: Pick<Env, "WHATSAPP_TOKEN" | "WHATSAPP_PHONE_NUMBER_ID" | "WHATSAPP_ORDER_TEMPLATE" | "WHATSAPP_OTP_TEMPLATE_LANG" | "WHATSAPP_GRAPH_VERSION">,
+    private readonly log: FastifyBaseLogger,
+  ) {}
+
+  async orderPlaced(n: OrderNotice): Promise<void> {
+    const url = `https://graph.facebook.com/${this.env.WHATSAPP_GRAPH_VERSION}/${this.env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
+    const text = (t: string) => ({ type: "text", text: t });
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: n.to.replace(/^\+/, ""),
+        type: "template",
+        template: {
+          name: this.env.WHATSAPP_ORDER_TEMPLATE,
+          language: { code: this.env.WHATSAPP_OTP_TEMPLATE_LANG },
+          components: [
+            {
+              type: "body",
+              parameters: [
+                text(n.code),
+                text(n.customerName),
+                text(String(n.itemCount)),
+                text(formatCedis(n.totalPesewas)),
+                text(n.fulfilment === "pickup" ? "Pickup" : (n.zoneName ?? "Delivery")),
+              ],
+            },
+          ],
+        },
+      }),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      this.log.error({ status: res.status, detail, order: n.code }, "whatsapp order notice failed");
+      throw new Error(`WhatsApp send failed (${res.status})`);
+    }
+  }
+}
+
+/** Dev only: prints the notice to the API log. */
+export class ConsoleOrderNotifier implements OrderNotifier {
+  constructor(private readonly log: FastifyBaseLogger) {}
+  async orderPlaced(n: OrderNotice) {
+    this.log.warn(
+      `\n\n  New order ${n.code} for ${n.storeName}: ${n.itemCount} item(s), ${formatCedis(n.totalPesewas)} from ${n.customerName} (${n.customerPhone})\n`,
+    );
+  }
+}
+
+/** Tests: collects notices. */
+export class MemoryOrderNotifier implements OrderNotifier {
+  readonly sent: OrderNotice[] = [];
+  async orderPlaced(n: OrderNotice) {
+    this.sent.push(n);
   }
 }

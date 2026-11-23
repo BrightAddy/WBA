@@ -5,3 +5,4 @@ export * from "./money.ts";
 export * from "./schemas.ts";
 export * from "./catalogue.ts";
 export * from "./delivery.ts";
+export * from "./store.ts";

@@ -7,7 +7,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.ts";
 import { createDb, type Db } from "../src/db/client.ts";
 import { loadEnv } from "../src/env.ts";
-import { MemoryOtpSender } from "../src/lib/whatsapp.ts";
+import { MemoryOrderNotifier, MemoryOtpSender } from "../src/lib/whatsapp.ts";
 import { LocalStorage } from "../src/lib/storage.ts";
 
 export const ORIGIN = "http://localhost:5173";
@@ -24,8 +24,9 @@ export async function setupTestApp() {
   const { db, pool } = createDb(TEST_DB_URL);
   const sender = new MemoryOtpSender();
   const storage = new LocalStorage(mkdtempSync(join(tmpdir(), "kiosk-media-")));
-  const app = await buildApp({ env, db, otpSender: sender, storage, logger: false });
-  return { app, db, pool, sender, storage };
+  const notifier = new MemoryOrderNotifier();
+  const app = await buildApp({ env, db, otpSender: sender, orderNotifier: notifier, storage, logger: false });
+  return { app, db, pool, sender, storage, notifier };
 }
 
 export async function resetDb(db: Db) {
@@ -107,4 +108,42 @@ export function send(app: FastifyInstance, method: "PUT" | "DELETE" | "GET", url
     ...(body !== undefined && { payload: body as object }),
     headers: { origin: ORIGIN, cookie },
   });
+}
+
+/** Stores start pending until reviewed; tests that need a live store approve it directly. */
+export async function approve(db: Db, slug: string) {
+  await db.execute(sql`UPDATE sellers SET status = 'approved', approved_at = now() WHERE slug = ${slug}`);
+}
+
+/** Creates and publishes a product through the real endpoints. */
+export async function makeProduct(
+  app: FastifyInstance,
+  cookie: string,
+  opts: {
+    title?: string;
+    pricePesewas?: number;
+    variants?: { size?: string; color?: string; stock: number; pricePesewas?: number }[];
+    publish?: boolean;
+  } = {},
+) {
+  const img = (await upload(app, cookie, await makeJpeg(800, 1000))).json().image;
+  const created = await post(
+    app,
+    "/api/seller/products",
+    {
+      title: opts.title ?? "Carhartt hoodie",
+      category: "Hoodies and jackets",
+      pricePesewas: opts.pricePesewas ?? 8500,
+      variants: opts.variants ?? [{ size: "M", stock: 3 }],
+      imageIds: [img.id],
+    },
+    cookie,
+  );
+  if (created.statusCode !== 201) throw new Error(`product failed: ${created.body}`);
+  const product = created.json().product;
+  if (opts.publish !== false) {
+    const r = await post(app, `/api/seller/products/${product.id}/status`, { status: "active" }, cookie);
+    if (r.statusCode !== 200) throw new Error(`publish failed: ${r.body}`);
+  }
+  return product as { id: string; variants: { id: string; size: string | null }[] };
 }

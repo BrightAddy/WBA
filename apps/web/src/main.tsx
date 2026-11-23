@@ -11,6 +11,12 @@ import { Home } from "./routes/dashboard/Home.tsx";
 import { Products } from "./routes/dashboard/Products.tsx";
 import { ProductEditor } from "./routes/dashboard/ProductEditor.tsx";
 import { Delivery } from "./routes/dashboard/Delivery.tsx";
+import { Orders } from "./routes/dashboard/Orders.tsx";
+import { StoreShell } from "./routes/store/StoreShell.tsx";
+import { StoreHome } from "./routes/store/StoreHome.tsx";
+import { ProductPage } from "./routes/store/ProductPage.tsx";
+import { CartPage } from "./routes/store/CartPage.tsx";
+import { OrderPlaced } from "./routes/store/OrderPlaced.tsx";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 
@@ -38,6 +44,18 @@ function Gate() {
 }
 
 const router = createBrowserRouter([
+  // Public storefronts live at the root: kiosk.app/<slug>. Static app routes below
+  // outrank "/:slug", and RESERVED_SLUGS keeps stores from taking those names.
+  {
+    path: "/:slug",
+    element: <StoreShell />,
+    children: [
+      { index: true, element: <StoreHome /> },
+      { path: "p/:id", element: <ProductPage /> },
+      { path: "cart", element: <CartPage /> },
+      { path: "order/:code", element: <OrderPlaced /> },
+    ],
+  },
   {
     element: <Gate />,
     children: [
@@ -50,6 +68,7 @@ const router = createBrowserRouter([
           { path: "products", element: <Products /> },
           { path: "products/new", element: <ProductEditor /> },
           { path: "products/:id", element: <ProductEditor /> },
+          { path: "orders", element: <Orders /> },
           { path: "delivery", element: <Delivery /> },
           { path: "*", element: <Navigate to="/dashboard" replace /> },
         ],

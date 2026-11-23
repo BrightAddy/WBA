@@ -47,6 +47,8 @@ if [ ! -f "$ENV_FILE" ]; then
   secret=$(openssl rand -base64 48 | tr -d '\n/+=')
   sed -i.bak "s|^OTP_SECRET=.*|OTP_SECRET=$secret|" "$ENV_FILE"
   rm -f "$ENV_FILE.bak"
+  # Local only: new stores go live straight away so you can see the storefront.
+  sed -i.bak "s|^AUTO_APPROVE_SELLERS=.*|AUTO_APPROVE_SELLERS=true|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
 fi
 sed -i.bak "s|^DATABASE_URL=.*|DATABASE_URL=postgres://kiosk:kiosk@localhost:$PORT/kiosk|" "$ENV_FILE" && rm -f "$ENV_FILE.bak"
 
@@ -61,7 +63,9 @@ cat <<EOF
   Kiosk is starting.
   Open  http://localhost:5173  in your browser.
   Sign in with any Ghana number. With no WhatsApp keys set, the
-  6-digit login code is printed below in the API log.
+  6-digit login code is printed below in the API log, and so are
+  new-order messages. Your store goes live straight away; open it at
+  http://localhost:5173/<your-store-link>.
   Press Ctrl+C to stop.
 
 EOF

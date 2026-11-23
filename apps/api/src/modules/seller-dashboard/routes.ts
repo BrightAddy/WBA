@@ -93,4 +93,14 @@ export async function sellerDashboardRoutes(app: FastifyInstance) {
     const settings = parse(deliverySettingsSchema, req.body);
     return app.delivery.updateSettings(req.seller!.id, settings);
   });
+
+  /* Orders */
+
+  app.get("/orders", async (req) => ({ orders: await app.orders.list(req.seller!.id) }));
+
+  app.post("/orders/:id/cancel", async (req, reply) => {
+    const { id } = parse(idParam, req.params);
+    await app.orders.cancelUnpaid(req.seller!.id, id, req.account!.id);
+    return reply.code(204).send();
+  });
 }

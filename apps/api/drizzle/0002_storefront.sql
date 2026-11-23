@@ -1,0 +1,2 @@
+ALTER TABLE "orders" ADD COLUMN "client_token" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "orders_seller_client_token_uq" ON "orders" USING btree ("seller_id","client_token") WHERE "orders"."client_token" IS NOT NULL;

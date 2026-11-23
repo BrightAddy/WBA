@@ -10,11 +10,14 @@ export function Thumb({
   sizes,
   alt = "",
   className = "",
+  eager = false,
 }: {
   image: ImageDto;
   sizes: string;
   alt?: string;
   className?: string;
+  /** Above-the-fold photos load immediately instead of lazily. */
+  eager?: boolean;
 }) {
   const [loaded, setLoaded] = useState(false);
   const placeholder = useMemo(() => {
@@ -33,11 +36,15 @@ export function Thumb({
       style={placeholder ? { backgroundImage: `url(${placeholder})` } : undefined}
     >
       <img
+        ref={(el) => {
+          // A cached photo can finish before React attaches onLoad.
+          if (el?.complete && el.naturalWidth > 0) setLoaded(true);
+        }}
         src={image.urls[widths[0]!]}
         srcSet={srcSet}
         sizes={sizes}
         alt={alt}
-        loading="lazy"
+        loading={eager ? "eager" : "lazy"}
         decoding="async"
         onLoad={() => setLoaded(true)}
         className={`size-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}

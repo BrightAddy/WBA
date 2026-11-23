@@ -5,8 +5,15 @@ import type {
   MeResponse,
   ProductDto,
   ProductInput,
+  PlacedOrder,
   ProductListItem,
   ProductStatus,
+  PublicProduct,
+  PublicStore,
+  CheckoutInput,
+  QuoteInput,
+  QuoteResponse,
+  SellerOrderDto,
   ZoneInput,
 } from "@kiosk/shared";
 
@@ -88,6 +95,18 @@ export const api = {
   setProductStatus: (id: string, status: ProductStatus) =>
     request<{ product: ProductDto }>("POST", `/seller/products/${id}/status`, { status }).then((r) => r.product),
   discardImage: (id: string) => request<void>("DELETE", `/seller/images/${id}`),
+
+  store: (slug: string) =>
+    request<{ store: PublicStore }>("GET", `/stores/${encodeURIComponent(slug)}`).then((r) => r.store),
+  storeProduct: (slug: string, id: string) =>
+    request<{ product: PublicProduct }>("GET", `/stores/${encodeURIComponent(slug)}/products/${id}`).then((r) => r.product),
+  quote: (slug: string, input: QuoteInput) =>
+    request<QuoteResponse>("POST", `/stores/${encodeURIComponent(slug)}/quote`, input),
+  placeOrder: (slug: string, input: CheckoutInput) =>
+    request<{ order: PlacedOrder }>("POST", `/stores/${encodeURIComponent(slug)}/orders`, input).then((r) => r.order),
+
+  sellerOrders: () => request<{ orders: SellerOrderDto[] }>("GET", "/seller/orders").then((r) => r.orders),
+  cancelOrder: (id: string) => request<void>("POST", `/seller/orders/${id}/cancel`, {}),
 
   delivery: () => request<DeliveryConfigDto>("GET", "/seller/delivery"),
   saveZones: (zones: ZoneInput[]) => request<DeliveryConfigDto>("PUT", "/seller/delivery/zones", { zones }),

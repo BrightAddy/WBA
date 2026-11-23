@@ -53,3 +53,14 @@ API tests run against real Postgres, built from the committed migrations.
 - **Store links** live at the domain root, so app routes are reserved slugs. Uniqueness is case-insensitive and enforced by a unique index, not just the availability check.
 - **Sellers start `pending`** and need an Instagram or TikTok link for review. Phones in `ADMIN_PHONES` sign in as admin.
 - **Generating migrations:** after editing `apps/api/src/db/schema.ts`, run `pnpm db:generate` and commit the SQL.
+
+### Storefront (Day 3)
+
+- Stores live at `/<slug>`. A store is public only when `approved`; its owner can preview it while `pending`, with ordering off. `AUTO_APPROVE_SELLERS=true` (set by `scripts/dev.sh`) skips review locally; never set it in production.
+- The server prices every cart (`/api/stores/:slug/quote` and `/orders` share one `price()` function). Client prices are display-only.
+- Placing an order takes stock atomically (`UPDATE ... WHERE stock >= qty`), so concurrent buyers can't oversell. A per-checkout `clientToken` makes retries and double taps idempotent.
+- Unpaid orders hold their stock until cancelled. Day 5 adds automatic expiry; until then a seller can cancel from Orders.
+- Customers have no accounts and there is no public order lookup; the confirmation page reads what the server returned at checkout.
+- Seller notification on a new order is sent at placement for now. Once payment exists (Day 5) it moves to payment confirmation, so unpaid or fake orders don't ping sellers.
+- Link previews: set `WEB_DIST` and the API serves the built app with Open Graph tags for store and product URLs.
+

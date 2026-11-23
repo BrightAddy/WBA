@@ -70,10 +70,13 @@ export function Home() {
         <Button variant="quiet" onClick={copy} aria-live="polite">
           {copied ? "Copied" : "Copy link"}
         </Button>
+        <Link to={`/${seller.slug}`} className="text-muted underline-offset-4 hover:text-fg hover:underline">
+          {seller.status === "pending" ? "Preview your store" : "View your store"}
+        </Link>
       </div>
       {seller.status === "pending" && (
         <p className="mt-3 max-w-[52ch] text-sm text-muted">
-          Your link works once we approve the store. Add stock and delivery areas while you wait.
+          Customers can open your link once we approve the store. Add stock and delivery areas while you wait, and preview how it looks.
         </p>
       )}
 
