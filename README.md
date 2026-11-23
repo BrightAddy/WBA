@@ -12,6 +12,14 @@ packages/shared Types, zod schemas, phone/slug/money helpers, design tokens.
 
 ## Run it
 
+One command (needs Node 22+ and Docker Desktop running):
+
+```bash
+./scripts/dev.sh
+```
+
+Or step by step:
+
 ```bash
 pnpm install
 docker compose up -d                 # or use a local Postgres 16
