@@ -196,13 +196,19 @@ export const products = pgTable(
   ],
 );
 
+/**
+ * Uploaded before the product is saved, so an image belongs to a seller first
+ * and is attached to a product on save. Unattached images older than a day are
+ * garbage. `storageKey` is a folder holding one WebP per IMAGE_WIDTHS entry.
+ */
 export const productImages = pgTable(
   "product_images",
   {
     id: id(),
-    productId: uuid("product_id")
+    sellerId: uuid("seller_id")
       .notNull()
-      .references(() => products.id, { onDelete: "cascade" }),
+      .references(() => sellers.id, { onDelete: "cascade" }),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }),
     storageKey: text("storage_key").notNull(),
     width: integer("width").notNull(),
     height: integer("height").notNull(),
@@ -211,7 +217,10 @@ export const productImages = pgTable(
     position: smallint("position").notNull().default(0),
     createdAt: createdAt(),
   },
-  (t) => [index("images_product_idx").on(t.productId, t.position)],
+  (t) => [
+    index("images_product_idx").on(t.productId, t.position),
+    index("images_seller_unattached_idx").on(t.sellerId, t.createdAt).where(sql`${t.productId} IS NULL`),
+  ],
 );
 
 export const productVariants = pgTable(
@@ -227,10 +236,11 @@ export const productVariants = pgTable(
     /** Null means "use the product price". */
     pricePesewas: money("price_pesewas"),
     stock: integer("stock").notNull().default(0),
+    position: smallint("position").notNull().default(0),
     createdAt: createdAt(),
   },
   (t) => [
-    index("variants_product_idx").on(t.productId),
+    index("variants_product_idx").on(t.productId, t.position),
     uniqueIndex("variants_product_size_color_uq").on(
       t.productId,
       sql`coalesce(lower(${t.size}), '')`,

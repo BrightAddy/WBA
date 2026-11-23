@@ -2,7 +2,9 @@ import Fastify, { type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
+import fastifyStatic from "@fastify/static";
 import type { ApiError } from "@kiosk/shared";
 import type { Env } from "./env.ts";
 import type { Db } from "./db/client.ts";
@@ -12,12 +14,20 @@ import { createAuthService, type AuthService } from "./modules/auth/service.ts";
 import { authRoutes } from "./modules/auth/routes.ts";
 import { sellerRoutes } from "./modules/sellers/routes.ts";
 import { authPlugin } from "./plugins/auth.ts";
+import { LocalStorage, type Storage } from "./lib/storage.ts";
+import { MAX_UPLOAD_BYTES } from "./lib/images.ts";
+import { createCatalogueService, type CatalogueService } from "./modules/catalogue/service.ts";
+import { createDeliveryService, type DeliveryService } from "./modules/delivery/service.ts";
+import { sellerDashboardRoutes } from "./modules/seller-dashboard/routes.ts";
 
 declare module "fastify" {
   interface FastifyInstance {
     env: Env;
     db: Db;
     auth: AuthService;
+    storage: Storage;
+    catalogue: CatalogueService;
+    delivery: DeliveryService;
   }
 }
 
@@ -25,9 +35,9 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 /** Paths called by third parties (Meta, Paystack) that authenticate by signature instead. */
 const ORIGIN_EXEMPT = [/^\/api\/webhooks\//];
 
-export type BuildOptions = { env: Env; db: Db; otpSender?: OtpSender; logger?: boolean };
+export type BuildOptions = { env: Env; db: Db; otpSender?: OtpSender; storage?: Storage; logger?: boolean };
 
-export async function buildApp({ env, db, otpSender, logger = true }: BuildOptions): Promise<FastifyInstance> {
+export async function buildApp({ env, db, otpSender, storage, logger = true }: BuildOptions): Promise<FastifyInstance> {
   const app = Fastify({
     logger: logger
       ? env.NODE_ENV === "development"
@@ -44,11 +54,26 @@ export async function buildApp({ env, db, otpSender, logger = true }: BuildOptio
 
   app.decorate("env", env);
   app.decorate("db", db);
+  const store = storage ?? new LocalStorage(env.MEDIA_DIR);
   app.decorate("auth", createAuthService({ db, otpSecret: env.OTP_SECRET, adminPhones: env.ADMIN_PHONES, sender }));
+  app.decorate("storage", store);
+  app.decorate("catalogue", createCatalogueService({ db, storage: store }));
+  app.decorate("delivery", createDeliveryService({ db }));
 
   await app.register(helmet, { contentSecurityPolicy: false });
   await app.register(cors, { origin: env.WEB_ORIGIN, credentials: true });
   await app.register(cookie);
+  await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 5 } });
+  // Dev/self-hosted media. In production a CDN in front of R2 serves these instead.
+  if (store instanceof LocalStorage) {
+    await app.register(fastifyStatic, {
+      root: store.rootDir,
+      prefix: "/media/",
+      decorateReply: false,
+      immutable: true,
+      maxAge: "365d",
+    });
+  }
   // Per-IP limits. Per-phone OTP limits live in the auth service and are always on.
   await app.register(rateLimit, {
     global: false,
@@ -88,6 +113,7 @@ export async function buildApp({ env, db, otpSender, logger = true }: BuildOptio
       await authPlugin(api);
       await api.register(authRoutes);
       await api.register(sellerRoutes);
+      await api.register(sellerDashboardRoutes, { prefix: "/seller" });
     },
     { prefix: "/api" },
   );

@@ -67,3 +67,52 @@ describe("onboardingSchema", () => {
     expect(r.success).toBe(false);
   });
 });
+
+import { productInputSchema } from "./catalogue.ts";
+import { quoteDelivery, zonesInputSchema } from "./delivery.ts";
+
+describe("productInputSchema", () => {
+  const base = {
+    title: "Carhartt hoodie",
+    category: "Hoodies and jackets",
+    pricePesewas: 8500,
+    variants: [{ size: "M", stock: 2 }, { size: "L", stock: 0 }],
+    imageIds: [],
+  };
+  it("accepts a valid product", () => {
+    expect(productInputSchema.safeParse(base).success).toBe(true);
+  });
+  it("rejects duplicate size/colour combos case-insensitively", () => {
+    const r = productInputSchema.safeParse({ ...base, variants: [{ size: "M", stock: 1 }, { size: "m", stock: 2 }] });
+    expect(r.success).toBe(false);
+  });
+  it("requires the old price to be higher", () => {
+    expect(productInputSchema.safeParse({ ...base, compareAtPesewas: 8000 }).success).toBe(false);
+    expect(productInputSchema.safeParse({ ...base, compareAtPesewas: 12000 }).success).toBe(true);
+  });
+  it("rejects fractional pesewas", () => {
+    expect(productInputSchema.safeParse({ ...base, pricePesewas: 85.5 }).success).toBe(false);
+  });
+});
+
+describe("delivery", () => {
+  const settings = { pickupEnabled: true, freeDeliveryOverPesewas: 50000 };
+  it("adds the zone fee", () => {
+    expect(quoteDelivery({ subtotalPesewas: 18000, fulfilment: "delivery", zone: { feePesewas: 1500 }, settings }))
+      .toEqual({ ok: true, feePesewas: 1500, totalPesewas: 19500, freeApplied: false });
+  });
+  it("waives the fee at the free-delivery threshold", () => {
+    const q = quoteDelivery({ subtotalPesewas: 50000, fulfilment: "delivery", zone: { feePesewas: 1500 }, settings });
+    expect(q).toEqual({ ok: true, feePesewas: 0, totalPesewas: 50000, freeApplied: true });
+  });
+  it("refuses unknown areas and disabled pickup", () => {
+    expect(quoteDelivery({ subtotalPesewas: 1, fulfilment: "delivery", zone: null, settings }).ok).toBe(false);
+    expect(
+      quoteDelivery({ subtotalPesewas: 1, fulfilment: "pickup", zone: null, settings: { ...settings, pickupEnabled: false } }).ok,
+    ).toBe(false);
+  });
+  it("rejects duplicate zone names", () => {
+    const r = zonesInputSchema.safeParse({ zones: [{ name: "Madina", feePesewas: 1500 }, { name: "madina ", feePesewas: 2000 }] });
+    expect(r.success).toBe(false);
+  });
+});

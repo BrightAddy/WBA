@@ -6,13 +6,14 @@ export function Button({
   className = "",
   children,
   ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "quiet"; busy?: boolean }) {
+}: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: "primary" | "secondary" | "quiet"; busy?: boolean }) {
   const base =
     "relative inline-flex items-center justify-center gap-2 font-medium transition-[transform,background-color,color] duration-150 ease-out active:scale-[0.98]";
-  const styles =
-    variant === "primary"
-      ? "h-12 rounded-md px-5 text-[15px] bg-ink text-[color:var(--chalk)] hover:bg-[color:var(--ink-3)]"
-      : "text-muted hover:text-fg underline-offset-4 hover:underline";
+  const styles = {
+    primary: "h-12 rounded-md px-5 text-[15px] bg-ink text-[color:var(--chalk)] hover:bg-[color:var(--ink-3)] disabled:opacity-40",
+    secondary: "h-12 rounded-md px-5 text-[15px] border border-line-strong bg-raised hover:border-fg disabled:opacity-40",
+    quiet: "text-muted hover:text-fg underline-offset-4 hover:underline disabled:opacity-40",
+  }[variant];
   return (
     <button className={`${base} ${styles} ${className}`} aria-busy={busy || undefined} {...rest}>
       <span className={busy ? "opacity-0" : undefined}>{children}</span>

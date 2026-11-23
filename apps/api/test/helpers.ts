@@ -1,9 +1,14 @@
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { sql } from "drizzle-orm";
+import sharp from "sharp";
 import type { FastifyInstance } from "fastify";
 import { buildApp } from "../src/app.ts";
 import { createDb, type Db } from "../src/db/client.ts";
 import { loadEnv } from "../src/env.ts";
 import { MemoryOtpSender } from "../src/lib/whatsapp.ts";
+import { LocalStorage } from "../src/lib/storage.ts";
 
 export const ORIGIN = "http://localhost:5173";
 const TEST_DB_URL = process.env.TEST_DATABASE_URL ?? "postgres://kiosk:kiosk@localhost:5432/kiosk_test";
@@ -18,8 +23,9 @@ export async function setupTestApp() {
   });
   const { db, pool } = createDb(TEST_DB_URL);
   const sender = new MemoryOtpSender();
-  const app = await buildApp({ env, db, otpSender: sender, logger: false });
-  return { app, db, pool, sender };
+  const storage = new LocalStorage(mkdtempSync(join(tmpdir(), "kiosk-media-")));
+  const app = await buildApp({ env, db, otpSender: sender, storage, logger: false });
+  return { app, db, pool, sender, storage };
 }
 
 export async function resetDb(db: Db) {
@@ -51,4 +57,54 @@ export async function signIn(app: FastifyInstance, sender: MemoryOtpSender, phon
   const e164 = "+233" + phone.replace(/^0/, "");
   const res = await post(app, "/api/auth/otp/verify", { challengeId, code: sender.sent.get(e164) });
   return cookieFrom(res)!;
+}
+
+/** Signed-in seller with a store; returns their cookie. */
+export async function signUpSeller(app: FastifyInstance, sender: MemoryOtpSender, phone: string, slug: string) {
+  const cookie = await signIn(app, sender, phone);
+  const r = await post(app, "/api/sellers/onboarding", {
+    ownerName: "Test Seller",
+    storeName: slug,
+    slug,
+    instagramUrl: `https://instagram.com/${slug.replace(/-/g, "")}`,
+  }, cookie);
+  if (r.statusCode !== 201) throw new Error(`onboarding failed: ${r.body}`);
+  return cookie;
+}
+
+/** A real JPEG with EXIF (including an orientation flag) to exercise the pipeline. */
+export function makeJpeg(width = 1200, height = 900, orientation?: number) {
+  return sharp({ create: { width, height, channels: 3, background: { r: 200, g: 80, b: 40 } } })
+    .jpeg()
+    .withExif({ IFD0: { Copyright: "seller home", Artist: "phone" } })
+    .withMetadata(orientation ? { orientation } : {})
+    .toBuffer();
+}
+
+export function multipart(file: Buffer, filename = "photo.jpg", contentType = "image/jpeg") {
+  const boundary = "----kiosktest" + Math.random().toString(16).slice(2);
+  const head = Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${contentType}\r\n\r\n`,
+  );
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+  return { payload: Buffer.concat([head, file, tail]), contentType: `multipart/form-data; boundary=${boundary}` };
+}
+
+export async function upload(app: FastifyInstance, cookie: string, file: Buffer, filename?: string, type?: string) {
+  const m = multipart(file, filename, type);
+  return app.inject({
+    method: "POST",
+    url: "/api/seller/images",
+    payload: m.payload,
+    headers: { origin: ORIGIN, cookie, "content-type": m.contentType },
+  });
+}
+
+export function send(app: FastifyInstance, method: "PUT" | "DELETE" | "GET", url: string, cookie: string, body?: unknown) {
+  return app.inject({
+    method,
+    url,
+    ...(body !== undefined && { payload: body as object }),
+    headers: { origin: ORIGIN, cookie },
+  });
 }

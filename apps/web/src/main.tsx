@@ -6,7 +6,11 @@ import "./styles/app.css";
 import { useMe } from "./lib/session.ts";
 import { Login } from "./routes/Login.tsx";
 import { Onboarding } from "./routes/Onboarding.tsx";
-import { Dashboard } from "./routes/Dashboard.tsx";
+import { DashboardLayout, type SellerMe } from "./routes/dashboard/Layout.tsx";
+import { Home } from "./routes/dashboard/Home.tsx";
+import { Products } from "./routes/dashboard/Products.tsx";
+import { ProductEditor } from "./routes/dashboard/ProductEditor.tsx";
+import { Delivery } from "./routes/dashboard/Delivery.tsx";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } } });
 
@@ -25,10 +29,11 @@ function Gate() {
   }
 
   const data = me.data;
-  const target = !data ? "/login" : !data.seller ? "/onboarding" : "/dashboard";
-  if (pathname !== target) return <Navigate to={target} replace />;
+  const area = !data ? "/login" : !data.seller ? "/onboarding" : "/dashboard";
+  const inArea = pathname === area || pathname.startsWith(`${area}/`);
+  if (!inArea) return <Navigate to={area} replace />;
 
-  if (target === "/dashboard") return <Dashboard me={data!} />;
+  if (area === "/dashboard") return <DashboardLayout me={data as SellerMe} />;
   return <Outlet />;
 }
 
@@ -36,10 +41,19 @@ const router = createBrowserRouter([
   {
     element: <Gate />,
     children: [
-      { path: "/", element: null },
       { path: "/login", element: <Login /> },
       { path: "/onboarding", element: <Onboarding /> },
-      { path: "/dashboard", element: null },
+      {
+        path: "/dashboard",
+        children: [
+          { index: true, element: <Home /> },
+          { path: "products", element: <Products /> },
+          { path: "products/new", element: <ProductEditor /> },
+          { path: "products/:id", element: <ProductEditor /> },
+          { path: "delivery", element: <Delivery /> },
+          { path: "*", element: <Navigate to="/dashboard" replace /> },
+        ],
+      },
       { path: "*", element: null },
     ],
   },

@@ -7,6 +7,7 @@ const schema = z
     PORT: z.coerce.number().int().default(3000),
     WEB_ORIGIN: z.string().url().default("http://localhost:5173"),
     DATABASE_URL: z.string().url(),
+    MEDIA_DIR: z.string().default(".media"),
     OTP_SECRET: z.string().min(32, "OTP_SECRET must be at least 32 characters"),
     ADMIN_PHONES: z
       .string()
